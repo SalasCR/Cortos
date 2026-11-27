@@ -29,6 +29,9 @@ nav button[aria-pressed="true"]{background:var(--acc);color:var(--onacc);border-
 label{display:block;font-size:14px;color:var(--mut);margin:10px 0 4px}
 input,textarea{width:100%;padding:13px;font:inherit;color:var(--ink);background:var(--inp);border:1px solid var(--line);border-radius:8px}
 input:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+.srow{display:flex;gap:8px;align-items:stretch}
+.srow #q{flex:1;min-width:0}
+.srow .btn{width:96px;margin-top:0;font-size:20px}
 #q{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;padding:16px}
 .btn{width:100%;margin-top:14px;padding:14px;border:0;border-radius:8px;background:var(--acc);color:var(--onacc);font:inherit;font-weight:700}
 .btn.sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
@@ -50,6 +53,11 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-vi
 details{background:var(--card);border:1px solid var(--line);border-radius:8px;margin-top:10px;padding:0 12px 12px}
 summary{padding:12px 0;cursor:pointer;font-weight:700;list-style-position:inside}
 details .row{background:var(--bg)}
+.act.eds{justify-content:flex-end;margin-top:0}
+.act button.ghost{flex:0 0 auto;padding:6px 14px;background:transparent;color:var(--mut);border:1px solid var(--line);font-size:14px}
+details.cov{border-left:4px solid var(--ok)}
+details.cov summary{color:var(--ok)}
+.ok{color:var(--ok);font-weight:700}
 .hint{color:var(--mut);margin-top:14px}
 .msg{margin-top:10px;font-weight:600;color:var(--ok)}
 textarea{min-height:140px;font:13px/1.3 ui-monospace,Menlo,monospace}
@@ -71,7 +79,7 @@ textarea{min-height:140px;font:13px/1.3 ui-monospace,Menlo,monospace}
 <button data-l="es" aria-pressed="false">ES</button>
 </div>
 <label for="q" data-t="search">Search short</label>
-<input id="q" autocomplete="off" autocapitalize="characters" data-p="partph" placeholder="Part number">
+<div class="srow"><input id="q" autocomplete="off" autocapitalize="characters" enterkeyhint="search" data-p="partph" placeholder="Part number"><button class="btn" id="go">OK</button></div>
 <div id="res"></div>
 </section>
 
@@ -107,7 +115,7 @@ en:{title:"Shorts",home:"Home",add:"Add",list:"List",search:"Search short",partp
 hint:"Type the part number and I will tell you if you owe it.",noowe:"You don’t owe it",norec:"This part has no shorts on record.",
 owe:"You owe {n} pcs",covered:"Covered",covmsg:"You don’t owe it. Everything was delivered.",lot:"Lot",none:"none",model:"Model",
 kitted:"kitted",nodate:"no date",pending:"Pending {a} of {b}",deliveries:"Deliveries:",pcson:"{c} pcs on {d}",qtyd:"Quantity delivered",
-deliver:"Deliver",del:"Delete",nolot:"No lot",pendof:"{a} pending of {b}",allcov:"all covered",
+deliver:"Deliver",edit:"Edit",cancel:"Cancel",qtytot:"Total quantity",del:"Delete",nolot:"No lot",pendof:"{a} pending of {b}",allcov:"all covered",
 empty:"You have no saved shorts. Add the first one in the Add tab.",kdate:"Kitting date",partno:"Part no.",material:"Material",
 pendq:"Pending quantity",remove:"Remove",more:"+ Add another",save:"Save",lotmiss:"The lot is missing.",
 check:"Check part {n}: the part number or quantity is missing.",addone:"Add at least one part.",saved1:"1 short saved.",savedn:"{n} shorts saved.",
@@ -117,7 +125,7 @@ es:{title:"Cortos",home:"Inicio",add:"Agregar",list:"Lista",search:"Buscar corto
 hint:"Escribe el número de parte y te digo si lo debes.",noowe:"No lo debes",norec:"Esta parte no tiene cortos registrados.",
 owe:"Debes {n} pzas",covered:"Cubierto",covmsg:"No lo debes. Ya entregaste todo.",lot:"Lote",none:"ninguno",model:"Modelo",
 kitted:"elaborado",nodate:"sin fecha",pending:"Pendiente {a} de {b}",deliveries:"Entregas:",pcson:"{c} pzas el {d}",qtyd:"Cantidad entregada",
-deliver:"Entregar",del:"Borrar",nolot:"Sin lote",pendof:"{a} pendientes de {b}",allcov:"todo cubierto",
+deliver:"Entregar",edit:"Editar",cancel:"Cancelar",qtytot:"Cantidad total",del:"Borrar",nolot:"Sin lote",pendof:"{a} pendientes de {b}",allcov:"todo cubierto",
 empty:"No tienes cortos guardados. Agrega el primero en la pestaña Agregar.",kdate:"Fecha de elaboración",partno:"No. de parte",material:"Material",
 pendq:"Cantidad pendiente",remove:"Quitar",more:"+ agregar otro",save:"Guardar",lotmiss:"Falta el lote.",
 check:"Revisa la parte {n}: falta el número de parte o la cantidad.",addone:"Agrega al menos una parte.",saved1:"1 corto guardado.",savedn:"{n} cortos guardados.",
@@ -153,9 +161,10 @@ function rowHTML(i,mode){
  return h+'</div>';
 }
 
+var searched=false,editKey=null;
 function inicio(){
  var n=norm($("q").value),out=$("res");
- if(!n){out.innerHTML='<p class="hint">'+t("hint")+'</p>';return}
+ if(!searched||!n){out.innerHTML="";return}
  var m=items.filter(function(i){return norm(i.p)===n});
  if(!m.length){out.innerHTML='<div class="slab"><h2>'+t("noowe")+'</h2><p>'+t("norec")+'</p></div>';return}
  m.sort(function(a,b){return(a.fecha||"9")<(b.fecha||"9")?-1:1});
@@ -163,6 +172,11 @@ function inicio(){
  out.innerHTML=(tot>0?'<div class="slab debe"><h2>'+t("owe",{n:tot})+'</h2><p>'+esc(m[0].m||m[0].p)+'</p></div>':'<div class="slab"><h2>'+t("covered")+'</h2><p>'+t("covmsg")+'</p></div>')+m.map(function(i){return rowHTML(i,"inicio")}).join("");
 }
 
+function edHTML(k,a){
+ var h='<div class="row ed"><label>'+t("lot")+'</label><input class="el" autocapitalize="characters" value="'+esc(k)+'"><label>'+t("model")+'</label><input class="em" value="'+esc(a[0].modelo||"")+'"><label>'+t("kdate")+'</label><input class="ef" type="date" value="'+esc(a[0].fecha||"")+'">';
+ a.forEach(function(i){h+='<div class="row edp" data-id="'+i.id+'"><label>'+t("partno")+'</label><input class="ep" autocapitalize="characters" value="'+esc(i.p)+'"><label>'+t("material")+'</label><input class="eM" value="'+esc(i.m||"")+'"><label>'+t("qtytot")+'</label><input class="eq" type="number" inputmode="numeric" min="1" value="'+i.q+'"></div>'});
+ return h+'<div class="msg ermsg" role="alert" style="color:var(--debe)"></div><div class="act"><button data-ec="1">'+t("cancel")+'</button><button class="go" data-es="1">'+t("save")+'</button></div></div>';
+}
 function lista(){
  var g={};items.forEach(function(i){var k=i.lote||"";(g[k]=g[k]||[]).push(i)});
  var keys=Object.keys(g);
@@ -170,9 +184,10 @@ function lista(){
  function nid(k){return Math.max.apply(null,g[k].map(function(i){return i.id||0}))}
  keys.sort(function(a,b){var x=fd(a),y=fd(b);return x>y?-1:x<y?1:nid(b)-nid(a)});
  $("all").innerHTML=keys.length?keys.map(function(k){
-  var a=g[k],np=a.filter(function(i){return pend(i)>0}).length;
+  var a=g[k],np=a.filter(function(i){return pend(i)>0}).length,ed=(editKey===k);
   var mo=a[0].modelo?t("model")+" "+esc(a[0].modelo)+", ":"";
-  return'<details data-k="'+esc(k)+'"'+(openSet[k]?" open":"")+'><summary>'+(k?t("lot")+" "+esc(k):t("nolot"))+'<div class="meta">'+mo+fmt(a[0].fecha)+", "+(np?t("pendof",{a:np,b:a.length}):t("allcov"))+'</div></summary>'+a.map(function(i){return rowHTML(i,"lista")}).join("")+'</details>';
+  var body=ed?edHTML(k,a):'<div class="act eds"><button class="ghost" data-ed="'+esc(k)+'">'+t("edit")+'</button></div>'+a.map(function(i){return rowHTML(i,"lista")}).join("");
+  return'<details data-k="'+esc(k)+'"'+(np?"":' class="cov"')+((openSet[k]||ed)?" open":"")+'><summary>'+(k?t("lot")+" "+esc(k):t("nolot"))+'<div class="meta">'+mo+fmt(a[0].fecha)+", "+(np?t("pendof",{a:np,b:a.length}):'<span class="ok">'+t("allcov")+'</span>')+'</div></summary>'+body+'</details>';
  }).join(""):'<p class="hint">'+t("empty")+'</p>';
 }
 
@@ -191,7 +206,9 @@ function view(v){
 }
 
 document.querySelector("nav").addEventListener("click",function(e){var v=e.target.dataset&&e.target.dataset.v;if(v)view(v)});
-$("q").addEventListener("input",inicio);
+$("q").addEventListener("input",function(){searched=false;inicio()});
+$("go").addEventListener("click",function(){searched=true;inicio();$("q").blur()});
+$("q").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();$("go").click()}});
 $("more").addEventListener("click",function(){$("blks").insertAdjacentHTML("beforeend",blk(true));tr($("blks"));var b=$("blks").querySelectorAll(".bp");b[b.length-1].focus()});
 
 $("add").addEventListener("click",function(){
@@ -213,6 +230,21 @@ $("add").addEventListener("click",function(){
 
 document.addEventListener("click",function(e){
  var t0=e.target,ds=t0.dataset||{};
+ if("ed" in ds){editKey=ds.ed;openSet[ds.ed]=true;lista();return}
+ if(ds.ec){editKey=null;lista();return}
+ if(ds.es){
+  var f=t0.closest(".ed"),ms=f.querySelector(".ermsg"),lote=f.querySelector(".el").value.trim().toUpperCase(),ups=[],bad=0;
+  if(!lote){ms.textContent=t("lotmiss");return}
+  f.querySelectorAll(".edp").forEach(function(r,n){
+   var it=items.filter(function(i){return String(i.id)===r.dataset.id})[0],p=r.querySelector(".ep").value.trim().toUpperCase(),q=parseInt(r.querySelector(".eq").value,10);
+   if(!it||!p||!q||q<1){if(!bad)bad=n+1;return}
+   ups.push([it,p,r.querySelector(".eM").value.trim(),q]);
+  });
+  if(bad){ms.textContent=t("check",{n:bad});return}
+  var mod=f.querySelector(".em").value.trim(),fe=f.querySelector(".ef").value;
+  ups.forEach(function(u){var it=u[0],dl=(it.e||[]).reduce(function(a,x){return a+x.c},0);it.p=u[1];it.m=u[2];it.q=Math.max(u[3],dl);it.lote=lote;it.modelo=mod;it.fecha=fe});
+  openSet[lote]=true;editKey=null;save();lista();return;
+ }
  if(ds.l){lang=ds.l;try{localStorage.setItem("cortos:lang",lang)}catch(x){}applyLang();return}
  if(ds.s){
   var it=items.filter(function(i){return String(i.id)===ds.s})[0];if(!it)return;
